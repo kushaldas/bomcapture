@@ -3,14 +3,16 @@ package main
 import (
 	"errors"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 
+	"github.com/go-redis/redis/v7"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	_ "github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+
+	"encoding/json"
 )
 
 type BDNS struct {
@@ -68,12 +70,20 @@ func startCapture(device string) {
 	}
 	defer handle.Close()
 
+	redisdb := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379", // use default Addr
+		Password: "",               // no password set
+		DB:       0,                // use default DB
+	})
+
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	for packet := range packetSource.Packets() {
 		res, err := parsePacket(packet) // Do something with a packet here.
 		if err == nil {
 			if len(res) > 0 {
-				fmt.Println(res)
+				//fmt.Println(res)
+				res2json, _ := json.Marshal(res)
+				redisdb.RPush("dnsqueue", res2json)
 			}
 		}
 
