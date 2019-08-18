@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -12,13 +13,20 @@ import (
 	"github.com/google/gopacket/pcap"
 )
 
+type BDNS struct {
+	Name  string
+	Type  string
+	Class string
+}
+
 // parse each packet
-func parsePacket(packet gopacket.Packet) {
+func parsePacket(packet gopacket.Packet) ([]BDNS, error) {
+	result := make([]BDNS, 0)
 	if packet.ErrorLayer() != nil {
 		// Means we have error in parsing the packet.
 		// For now we will just skip the packet.
 		log.Panic("Error in parsing the packet.")
-		return
+		return result, errors.New("Error in parting packet")
 	}
 
 	//fmt.Println(packet)
@@ -34,13 +42,16 @@ func parsePacket(packet gopacket.Packet) {
 		if layer.LayerType() == layers.LayerTypeDNS {
 			l := layer.(*layers.DNS)
 			qs := l.Questions
+
 			for _, q := range qs {
-				fmt.Println(string(q.Name), q.Type, q.Class)
+				//fmt.Println(string(q.Name), q.Type, q.Class)
+				result = append(result, BDNS{string(q.Name), q.Type.String(), q.Class.String()})
+
 			}
 
 		}
 	}
-	//fmt.Println("=========================================")
+	return result, nil
 }
 
 func startCapture(device string) {
@@ -59,7 +70,13 @@ func startCapture(device string) {
 
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	for packet := range packetSource.Packets() {
-		parsePacket(packet) // Do something with a packet here.
+		res, err := parsePacket(packet) // Do something with a packet here.
+		if err == nil {
+			if len(res) > 0 {
+				fmt.Println(res)
+			}
+		}
+
 	}
 
 }
