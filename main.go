@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 
@@ -56,7 +57,7 @@ func parsePacket(packet gopacket.Packet) ([]BDNS, error) {
 	return result, nil
 }
 
-func startCapture(device string) {
+func startCapture(device string, stdout bool) {
 	inactive, err := pcap.NewInactiveHandle(device)
 	if err != nil {
 		log.Fatal(err)
@@ -82,8 +83,12 @@ func startCapture(device string) {
 		if err == nil {
 			if len(res) > 0 {
 				//fmt.Println(res)
-				res2json, _ := json.Marshal(res)
-				redisdb.RPush("dnsqueue", res2json)
+				if !stdout {
+					res2json, _ := json.Marshal(res)
+					redisdb.RPush("dnsqueue", res2json)
+				} else {
+					fmt.Println(res[0].Name, res[0].Type, res[0].Class)
+				}
 			}
 		}
 
@@ -97,7 +102,8 @@ Entry point for the executable
 func main() {
 	log.SetOutput(os.Stderr)
 	device := flag.String("device", "wg0", "The device to capture (as root).")
+	stdout := flag.Bool("stdout", false, "Print output only on stdout")
 	flag.Parse()
 
-	startCapture(*device)
+	startCapture(*device, *stdout)
 }
