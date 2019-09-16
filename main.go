@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/go-redis/redis/v7"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	_ "github.com/google/gopacket/layers"
@@ -45,6 +44,11 @@ func parsePacket(packet gopacket.Packet) ([]BDNS, error) {
 		if layer.LayerType() == layers.LayerTypeDNS {
 			l := layer.(*layers.DNS)
 			qs := l.Questions
+
+			// If it is a query, then we are getting QR = true
+			if l.QR == true {
+				continue
+			}
 
 			for _, q := range qs {
 				//fmt.Println(string(q.Name), q.Type, q.Class)
