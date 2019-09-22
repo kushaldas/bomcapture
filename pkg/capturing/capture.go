@@ -1,11 +1,9 @@
-package main
+package capturing
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/go-redis/redis/v7"
 	"github.com/google/gopacket"
@@ -87,7 +85,7 @@ func parsePacket(packet gopacket.Packet) ([]BDNS, error) {
 	return result, nil
 }
 
-func startCapture(device string, stdout bool) {
+func StartCapture(device string, stdout bool) {
 	inactive, err := pcap.NewInactiveHandle(device)
 	if err != nil {
 		log.Fatal(err)
@@ -125,16 +123,4 @@ func startCapture(device string, stdout bool) {
 
 	}
 
-}
-
-/*
-Entry point for the executable
-*/
-func main() {
-	log.SetOutput(os.Stderr)
-	device := flag.String("device", "wg0", "The device to capture (as root).")
-	stdout := flag.Bool("stdout", false, "Print output only on stdout")
-	flag.Parse()
-
-	startCapture(*device, *stdout)
 }
