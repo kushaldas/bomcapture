@@ -19,10 +19,11 @@ type OwnPackets interface {
 }
 
 type BDNS struct {
-	Name  string
-	Type  string
-	Class string
-	Ips   []string
+	PacketType string
+	Name       string
+	Type       string
+	Class      string
+	Ips        []string
 }
 
 func (p BDNS) Json() []byte {
@@ -85,7 +86,7 @@ func parsePacket(packet gopacket.Packet) ([]OwnPackets, error) {
 					ips = ipv6
 				}
 
-				result = append(result, BDNS{string(q.Name), q.Type.String(), q.Class.String(), ips})
+				result = append(result, BDNS{"DNS", string(q.Name), q.Type.String(), q.Class.String(), ips})
 
 			}
 
