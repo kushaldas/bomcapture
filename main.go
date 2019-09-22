@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/go-redis/redis/v7"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	_ "github.com/google/gopacket/layers"
@@ -19,6 +20,7 @@ type BDNS struct {
 	Name  string
 	Type  string
 	Class string
+	Ips   []string
 }
 
 // parse each packet
@@ -43,16 +45,40 @@ func parsePacket(packet gopacket.Packet) ([]BDNS, error) {
 		// }
 		if layer.LayerType() == layers.LayerTypeDNS {
 			l := layer.(*layers.DNS)
+			ipv4 := make([]string, 0)
+			ipv6 := make([]string, 0)
+			var ips []string
 			qs := l.Questions
 
-			// If it is a query, then we are getting QR = true
-			if l.QR == true {
+			// If it is a response, then we are getting QR = true
+			if l.QR == false {
 				continue
+			}
+			answers := l.Answers
+
+			for _, af := range answers {
+
+				if af.IP != nil {
+					ip := af.IP.String()
+					if len(ip) <= 16 {
+						ipv4 = append(ipv4, ip)
+					} else {
+						ipv6 = append(ipv6, ip)
+					}
+				}
 			}
 
 			for _, q := range qs {
 				//fmt.Println(string(q.Name), q.Type, q.Class)
-				result = append(result, BDNS{string(q.Name), q.Type.String(), q.Class.String()})
+				cls := q.Type.String()
+
+				if cls == "A" {
+					ips = ipv4
+				} else if cls == "AAAA" {
+					ips = ipv6
+				}
+
+				result = append(result, BDNS{string(q.Name), q.Type.String(), q.Class.String(), ips})
 
 			}
 
@@ -89,9 +115,10 @@ func startCapture(device string, stdout bool) {
 				//fmt.Println(res)
 				if !stdout {
 					res2json, _ := json.Marshal(res)
-					redisdb.RPush("dnsqueue", res2json)
+					redisdb.RPush("rawpackets", res2json)
 				} else {
-					fmt.Println(res[0].Name, res[0].Type, res[0].Class)
+					fmt.Println(res[0].Name, res[0].Type, res[0].Class, res[0].Ips)
+
 				}
 			}
 		}
