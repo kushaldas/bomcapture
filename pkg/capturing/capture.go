@@ -14,6 +14,10 @@ import (
 	"encoding/json"
 )
 
+type OwnPackets interface {
+	Json() []byte
+}
+
 type BDNS struct {
 	Name  string
 	Type  string
@@ -21,9 +25,14 @@ type BDNS struct {
 	Ips   []string
 }
 
+func (p BDNS) Json() []byte {
+	res2json, _ := json.Marshal(p)
+	return res2json
+}
+
 // parse each packet
-func parsePacket(packet gopacket.Packet) ([]BDNS, error) {
-	result := make([]BDNS, 0)
+func parsePacket(packet gopacket.Packet) ([]OwnPackets, error) {
+	result := make([]OwnPackets, 0)
 	if packet.ErrorLayer() != nil {
 		// Means we have error in parsing the packet.
 		// For now we will just skip the packet.
@@ -115,7 +124,10 @@ func StartCapture(device string, stdout bool) {
 					res2json, _ := json.Marshal(res)
 					redisdb.RPush("rawpackets", res2json)
 				} else {
-					fmt.Println(res[0].Name, res[0].Type, res[0].Class, res[0].Ips)
+					switch data := res[0].(type) {
+					case BDNS:
+						fmt.Println(data.Name, data.Type, data.Class, data.Ips)
+					}
 
 				}
 			}
