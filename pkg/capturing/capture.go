@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/go-redis/redis/v7"
 	"github.com/google/gopacket"
@@ -115,6 +116,9 @@ func parsePacket(packet gopacket.Packet) ([]OwnPackets, error) {
 			}
 
 		}
+	}
+	if strings.HasPrefix(tcpS.Dest, "10.19.49.") == true {
+		return result, nil
 	}
 	if dnsPacket == false && tcpS.Sport != 0 {
 		result = append(result, tcpS)
