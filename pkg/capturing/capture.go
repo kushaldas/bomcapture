@@ -31,8 +31,23 @@ func (p BDNS) Json() []byte {
 	return res2json
 }
 
+type BPackets struct {
+	PacketType string
+	Src        string
+	Dest       string
+	Sport      int
+	Dport      int
+}
+
+func (p BPackets) Json() []byte {
+	res2json, _ := json.Marshal(p)
+	return res2json
+}
+
 // parse each packet
 func parsePacket(packet gopacket.Packet) ([]OwnPackets, error) {
+	// Flag to mark a DNS packet for DoH
+	dnsPacket := false
 	result := make([]OwnPackets, 0)
 	if packet.ErrorLayer() != nil {
 		// Means we have error in parsing the packet.
@@ -43,15 +58,24 @@ func parsePacket(packet gopacket.Packet) ([]OwnPackets, error) {
 
 	//fmt.Println(packet)
 	// If we are here, means we can successfuly parse the packet.
+	tcpS := BPackets{}
+	tcpS.PacketType = "Packet"
 	for _, layer := range packet.Layers() {
 		// fmt.Println("PACKET LAYER:", layer.LayerType())
 
-		// if layer.LayerType() == layers.LayerTypeIPv4 {
-		// 	l := layer.(*layers.IPv4)
-		// 	fmt.Println(l.SrcIP, l.DstIP)
+		if layer.LayerType() == layers.LayerTypeTCP {
+			l := layer.(*layers.TCP)
+			sport := int(l.SrcPort)
+			dport := int(l.DstPort)
+			tcpS.Sport = sport
+			tcpS.Dport = dport
+		} else if layer.LayerType() == layers.LayerTypeIPv4 {
+			l := layer.(*layers.IPv4)
+			tcpS.Src = l.SrcIP.String()
+			tcpS.Dest = l.DstIP.String()
 
-		// }
-		if layer.LayerType() == layers.LayerTypeDNS {
+		} else if layer.LayerType() == layers.LayerTypeDNS {
+			dnsPacket = true
 			l := layer.(*layers.DNS)
 			ipv4 := make([]string, 0)
 			ipv6 := make([]string, 0)
@@ -91,6 +115,9 @@ func parsePacket(packet gopacket.Packet) ([]OwnPackets, error) {
 			}
 
 		}
+	}
+	if dnsPacket == false && tcpS.Sport != 0 {
+		result = append(result, tcpS)
 	}
 	return result, nil
 }

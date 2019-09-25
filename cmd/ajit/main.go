@@ -45,11 +45,12 @@ func main() {
 		DB:       0,                // use default DB
 	})
 
-	go ExecuteCommand()
+	//go ExecuteCommand()
 
 	for {
 		var typedData []map[string]interface{}
 		var DNSData []capturing.BDNS
+		var PacketData []capturing.BPackets
 		rawdata := redisdb.BLPop(0, "rawpackets")
 		// First get the result of the command
 		data, ok := rawdata.Result()
@@ -57,16 +58,22 @@ func main() {
 			// We unmarshal once to find out the type of the data
 			json.Unmarshal([]byte(data[1]), &typedData)
 		}
-		// While sending we are marking the type of the Packet
-		res := typedData[0]["PacketType"].(string)
+		for _, eachPacket := range typedData {
+			// While sending we are marking the type of the Packet
+			res := eachPacket["PacketType"].(string)
 
-		// Process BDNS packets
-		if res == "DNS" {
-			BDNSBytes := []byte(data[1])
-			redisdb.RPush("dnsqueue", BDNSBytes)
-			json.Unmarshal(BDNSBytes, &DNSData)
-			// TODO: Save to the database
-			//fmt.Printf("%#v\n", DNSData)
+			// Process BDNS packets
+			if res == "DNS" {
+				BDNSBytes := []byte(data[1])
+				redisdb.RPush("dnsqueue", BDNSBytes)
+				json.Unmarshal(BDNSBytes, &DNSData)
+				// TODO: Save to the database
+				fmt.Printf("%#v\n", DNSData)
+			} else if res == "Packet" {
+				PacketBytes := []byte(data[1])
+				json.Unmarshal(PacketBytes, &PacketData)
+				fmt.Printf("%#v\n", PacketData)
+			}
 		}
 
 	}
