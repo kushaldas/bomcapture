@@ -4,9 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"time"
+
+	"database/sql"
 
 	"github.com/go-redis/redis/v7"
 	"github.com/kushaldas/bomcapture/pkg/capturing"
+	_ "github.com/lib/pq"
 	"github.com/spf13/viper"
 )
 
@@ -55,6 +59,14 @@ func main() {
 		return
 	}
 
+	connStr := fmt.Sprintf("postgresql://%s:%s@127.0.0.1/bomkesh", viper.Get("user"), viper.Get("password"))
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer db.Close()
+
 	//go ExecuteCommand()
 
 	for {
@@ -78,28 +90,29 @@ func main() {
 				redisdb.RPush("dnsqueue", BDNSBytes)
 				json.Unmarshal(BDNSBytes, &DNSData)
 				// Now save the IP results to the redis for quick recovery
-
-				for _, ip := range DNSData[0].Ips {
+				d := DNSData[0]
+				for _, ip := range d.Ips {
 					rname := fmt.Sprintf("ip:%s", ip)
-					redisdb.SAdd(rname, DNSData[0].Name)
+					redisdb.SAdd(rname, d.Name)
+					_, err := db.Exec("INSERT INTO dnsqueue(domain_name, domain_class, domain_type, ip, timestamp) VALUES ($1, $2, $3, $4, $5)", d.Name, d.Class, d.Type, ip, time.Now())
+					if err != nil {
+						fmt.Printf("%#v\n", err)
+						panic(err)
+					}
 				}
 				// TODO: Save to the database
 				fmt.Printf("%#v\n", DNSData)
 			} else if res == "Packet" {
-				domainname := ""
 				PacketBytes := []byte(data[1])
 				json.Unmarshal(PacketBytes, &PacketData)
 				//fmt.Printf("%#v\n", PacketData)
 				p := PacketData[0]
-				key := fmt.Sprintf("ip:%s", p.Dest)
-				data := redisdb.SMembers(key)
-				members, _ := data.Result()
-				if len(members) > 0 {
-					domainname = members[0]
-				} else {
-					domainname = p.Dest
+
+				_, err := db.Exec("INSERT INTO tcppacket(source_ip, destination_ip, source_port, destination_port, timestamp) VALUES ($1, $2, $3, $4, $5)", p.Src, p.Dest, p.Sport, p.Dport, time.Now())
+				if err != nil {
+					fmt.Printf("%#v\n", err)
+					panic(err)
 				}
-				fmt.Printf("Src:%s Dest: %s  Sport: %d Dport: %d\n", p.Src, domainname, p.Sport, p.Dport)
 			}
 		}
 
