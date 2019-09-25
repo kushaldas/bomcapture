@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-redis/redis/v7"
 	"github.com/kushaldas/bomcapture/pkg/capturing"
+	"github.com/spf13/viper"
 )
 
 func ExecuteCommand() {
@@ -44,6 +45,15 @@ func main() {
 		Password: "",               // no password set
 		DB:       0,                // use default DB
 	})
+	// The following is for configuration using viper
+	viper.SetConfigName("db")
+	viper.AddConfigPath("./")
+	err := viper.ReadInConfig()
+
+	if err != nil {
+		fmt.Println("No configuration file loaded - exiting")
+		return
+	}
 
 	//go ExecuteCommand()
 
@@ -67,12 +77,29 @@ func main() {
 				BDNSBytes := []byte(data[1])
 				redisdb.RPush("dnsqueue", BDNSBytes)
 				json.Unmarshal(BDNSBytes, &DNSData)
+				// Now save the IP results to the redis for quick recovery
+
+				for _, ip := range DNSData[0].Ips {
+					rname := fmt.Sprintf("ip:%s", ip)
+					redisdb.SAdd(rname, DNSData[0].Name)
+				}
 				// TODO: Save to the database
 				fmt.Printf("%#v\n", DNSData)
 			} else if res == "Packet" {
+				domainname := ""
 				PacketBytes := []byte(data[1])
 				json.Unmarshal(PacketBytes, &PacketData)
-				fmt.Printf("%#v\n", PacketData)
+				//fmt.Printf("%#v\n", PacketData)
+				p := PacketData[0]
+				key := fmt.Sprintf("ip:%s", p.Dest)
+				data := redisdb.SMembers(key)
+				members, _ := data.Result()
+				if len(members) > 0 {
+					domainname = members[0]
+				} else {
+					domainname = p.Dest
+				}
+				fmt.Printf("Src:%s Dest: %s  Sport: %d Dport: %d\n", p.Src, domainname, p.Sport, p.Dport)
 			}
 		}
 

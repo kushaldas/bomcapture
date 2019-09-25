@@ -6,13 +6,13 @@ import (
 	"log"
 	"strings"
 
+	"encoding/json"
+
 	"github.com/go-redis/redis/v7"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	_ "github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-
-	"encoding/json"
 )
 
 type OwnPackets interface {
