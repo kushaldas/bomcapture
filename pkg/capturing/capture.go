@@ -45,7 +45,7 @@ func (p BPackets) Json() []byte {
 	return res2json
 }
 
-// parse each packet
+// ParsePacket parses each packet for our usecase.
 func ParsePacket(packet gopacket.Packet, onlyDNS bool) ([]OwnPackets, error) {
 	// Flag to mark a DNS packet for DoH
 	dnsPacket := false
