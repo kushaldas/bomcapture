@@ -46,7 +46,7 @@ func (p BPackets) Json() []byte {
 }
 
 // parse each packet
-func parsePacket(packet gopacket.Packet) ([]OwnPackets, error) {
+func ParsePacket(packet gopacket.Packet, onlyDNS bool) ([]OwnPackets, error) {
 	// Flag to mark a DNS packet for DoH
 	dnsPacket := false
 	result := make([]OwnPackets, 0)
@@ -120,7 +120,7 @@ func parsePacket(packet gopacket.Packet) ([]OwnPackets, error) {
 	if strings.HasPrefix(tcpS.Dest, "10.19.49.") == true {
 		return result, nil
 	}
-	if dnsPacket == false && tcpS.Sport != 0 {
+	if dnsPacket == false && tcpS.Sport != 0 && onlyDNS == false {
 		result = append(result, tcpS)
 	}
 	return result, nil
@@ -148,7 +148,7 @@ func StartCapture(device string, stdout bool) {
 
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	for packet := range packetSource.Packets() {
-		res, err := parsePacket(packet) // Do something with a packet here.
+		res, err := ParsePacket(packet, false) // Do something with a packet here.
 		if err == nil {
 			if len(res) > 0 {
 				//fmt.Println(res)
