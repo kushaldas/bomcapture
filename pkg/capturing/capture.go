@@ -53,7 +53,7 @@ func ParsePacket(packet gopacket.Packet, onlyDNS bool) ([]OwnPackets, error) {
 	if packet.ErrorLayer() != nil {
 		// Means we have error in parsing the packet.
 		// For now we will just skip the packet.
-		log.Panic("Error in parsing the packet.")
+		log.Println("Error in parsing the packet.")
 		return result, errors.New("Error in parting packet")
 	}
 
